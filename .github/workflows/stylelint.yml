@@ -1,0 +1,23 @@
+name: Style Linting
+
+on: [push, pull_request]
+
+jobs:
+  stylelint:
+    name: Stylelint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out source code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'
+
+    - name: Install Node.js dependencies
+      run: npm ci
+
+    - name: Run stylelint
+      run: npx stylelint "**/*.css"

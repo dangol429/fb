@@ -39,6 +39,7 @@ interface Post {
   post_id: string;
   email: string;
   content: string;
+  photo?: string;
   author: Author;
   createdAt: Timestamp;
   updatedAt: Timestamp | null;
@@ -533,10 +534,10 @@ const Post: React.FC<PostProps> = ({ post, onComment, onLike, onDislike, onBookm
   return (
     <StyledCard>
       <Meta
-        avatar={<CustomAvatar  icon={<UserOutlined />} src={post.author.profile_picture} />}
-        title={<CustomTitle>{`${post.author.first_name} ${post.author.last_name}`}</CustomTitle>}
-        description={
-          <>
+      avatar={<CustomAvatar icon={<UserOutlined />} src={post.author.profile_picture} />}
+      title={<CustomTitle>{`${post.author.first_name} ${post.author.last_name}`}</CustomTitle>}
+      description={
+        <>
           <CustomDateSpan>
             {new Date(post.createdAt.toDate()).toLocaleDateString('en-US', {
               month: 'short',
@@ -548,76 +549,88 @@ const Post: React.FC<PostProps> = ({ post, onComment, onLike, onDislike, onBookm
               hour12: true,
             })}
           </CustomDateSpan>
-            <p style={{ color: 'black' }} key={post.createdAt.toDate().toString()}
->
-              {post.content}
-            </p>
-            <div>
-              <NumbersContainer>
-                <LikeNumber>
-                  <CountWrapper> {likeNumber} Likes</CountWrapper>
-                </LikeNumber>
-                <CommentNumber>
-                  <CountWrapper>{post.comments.length + comments.length} Comments</CountWrapper>
-                  <CountWrapper>{bookmarkNumber} Bookmarks</CountWrapper>
-                </CommentNumber>
-              </NumbersContainer>
-              <Line />
-              <ButtonsContainer>
-                <LikeContainer>
-                  <ActionButton
-                    style = {{ width: '200px'}}
-                    icon={isLiked ? <LikeFilled /> : <LikeOutlined />}
-                    onClick={handleLike}
-                    className={isLiked ? 'ant-btn ant-btn-primary' : 'ant-btn'}
-                  >
-                    <MobileSpan>{isLiked ? 'Unlike' : 'Like'}</MobileSpan>
-                  </ActionButton>
-                </LikeContainer>
-                <CommentContainer>
-                  <ActionButton
-                    style = {{ width: '200px'}}
-                    icon={<MessageOutlined />}
-                    onClick={toggleComments}
-                    className={showComments ? 'ant-btn ant-btn-primary' : 'ant-btn'}
-                  >
-                    <MobileSpan>Comment</MobileSpan>
-                  </ActionButton>
-                </CommentContainer>
-                <Bookmarks>
-                  <ActionButton
-                    style = {{ width: '200px'}}
-                    icon={isBookmarked ? <BookFilled /> : <BookOutlined />}
-                    onClick={handleBookmark}
-                    className={isBookmarked ? 'ant-btn ant-btn-primary' : 'ant-btn'}
-                    ><MobileSpan>Bookmark</MobileSpan></ActionButton>
-                </Bookmarks>
-                {/* ... (Other elements) */}
-              </ButtonsContainer>
-                {/* <Changes>
-                  {currentUser.email === post.email && (
-                    <>
-                      <ActionButton icon={<EditOutlined />} onClick={() => onUpdate(post)}>
-                      </ActionButton>
-                      <ActionButton icon={<DeleteOutlined />} onClick={() => onDelete(post)}>
-                      </ActionButton>
-                    </>
-                  )}
-                </Changes> */}
-              <Line/>
-              {showComments && (
-              <Comments
-              handleComment={handleComment}
-              comments={fetchedComments}
-              postId={PostId}
-              currentUser={CurrentUser}
-              onUpdateComment={handleUpdateComment}
-            />            
+          <p style={{ color: 'black' }} key={post.createdAt.toDate().toString()}>
+            {post.content}
+          </p>
+          {post.photo && ( // Corrected conditional rendering
+            <img
+              style= {{
+                width: '100%',            /* Ensures the image takes up the full width of the container */
+                maxHeight: '300px',      /* Limits the maximum height of the image */
+                objectFit: 'cover',      /* Ensures the image covers the entire area, maintaining aspect ratio */
+                borderRadius: '8px',  /* Adds rounded corners for a nicer look */
+                marginTop: '10px',      /* Adds space between the image and the content above */
+              }}
+              src={post.photo}
+              alt={'post photo'}
+            />
+          )}
+          <div>
+            <NumbersContainer>
+              <LikeNumber>
+                <CountWrapper>{likeNumber} Likes</CountWrapper>
+              </LikeNumber>
+              <CommentNumber>
+                <CountWrapper>{post.comments.length + comments.length} Comments</CountWrapper>
+                <CountWrapper>{bookmarkNumber} Bookmarks</CountWrapper>
+              </CommentNumber>
+            </NumbersContainer>
+            <Line />
+            <ButtonsContainer>
+              <LikeContainer>
+                <ActionButton
+                  style={{ width: '200px' }}
+                  icon={isLiked ? <LikeFilled /> : <LikeOutlined />}
+                  onClick={handleLike}
+                  className={isLiked ? 'ant-btn ant-btn-primary' : 'ant-btn'}
+                >
+                  <MobileSpan>{isLiked ? 'Unlike' : 'Like'}</MobileSpan>
+                </ActionButton>
+              </LikeContainer>
+              <CommentContainer>
+                <ActionButton
+                  style={{ width: '200px' }}
+                  icon={<MessageOutlined />}
+                  onClick={toggleComments}
+                  className={showComments ? 'ant-btn ant-btn-primary' : 'ant-btn'}
+                >
+                  <MobileSpan>Comment</MobileSpan>
+                </ActionButton>
+              </CommentContainer>
+              <Bookmarks>
+                <ActionButton
+                  style={{ width: '200px' }}
+                  icon={isBookmarked ? <BookFilled /> : <BookOutlined />}
+                  onClick={handleBookmark}
+                  className={isBookmarked ? 'ant-btn ant-btn-primary' : 'ant-btn'}
+                >
+                  <MobileSpan>Bookmark</MobileSpan>
+                </ActionButton>
+              </Bookmarks>
+            </ButtonsContainer>
+            {/* Optional update/delete actions */}
+            {/* <Changes>
+              {currentUser.email === post.email && (
+                <>
+                  <ActionButton icon={<EditOutlined />} onClick={() => onUpdate(post)} />
+                  <ActionButton icon={<DeleteOutlined />} onClick={() => onDelete(post)} />
+                </>
               )}
-            </div>
-          </>
-        }
-      />
+            </Changes> */}
+            <Line />
+            {showComments && (
+              <Comments
+                handleComment={handleComment}
+                comments={fetchedComments}
+                postId={PostId}
+                currentUser={CurrentUser}
+                onUpdateComment={handleUpdateComment}
+              />
+            )}
+          </div>
+        </>
+      }
+    />
     </StyledCard>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout, Input, Button, message, Avatar } from 'antd';
+import { Layout, Input, Button, message, Avatar, Upload } from 'antd';
 import Sidebar from '../components/sidebar';
 import Posts from '../components/posts';
 import createPost from '../firebase/createPost'
@@ -12,6 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import PostSkeleton from '../components/skeleton/postsSkeleton';
 import './home.css'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 
 // Firebase imports
 import { 
@@ -20,7 +22,7 @@ import {
   limit, 
   DocumentSnapshot 
 } from 'firebase/firestore';
-import { UserOutlined } from '@ant-design/icons';
+import { UploadOutlined, UserOutlined } from '@ant-design/icons';
 
 
 
@@ -146,6 +148,7 @@ const HOME = () => {
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<Post[]>([]); // Assuming 'any' as the type for your posts. You might want to replace it with the actual type.
   // const [dummyState, setDummyState] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [lastVisible, setLastVisible] = useState<DocumentSnapshot<Post> | null>(null);
   const [hasMore, setHasMore] = useState(true);
 
@@ -153,7 +156,6 @@ const HOME = () => {
   // const samplePosts = ...
 
   const CurrentUser = useSelector((state: AppState) => state.auth.user);
-  console.log('this should happen once')
   const email = CurrentUser.email;
   const first_name = CurrentUser.first_name;
   const last_name = CurrentUser.last_name;
@@ -226,8 +228,8 @@ const HOME = () => {
   // };
   
 
-  const handlePost = () => {
-    if (newPost.trim() !== '') {
+  const handlePost = async (selectedFile: File|null) => {
+    if (newPost.trim() !== '' || selectedFile) {
       const newPostObject = {
         post_id: uuidv4(),
         email: email,
@@ -241,8 +243,8 @@ const HOME = () => {
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: null,
         comments: [],
+        photo: selectedFile ? await handleUpload(selectedFile) : undefined
       };
-  
       createPost(newPostObject);
       setNewPost('');
       setTimeout(()=>window.location.reload(), 1000);
@@ -455,6 +457,35 @@ const useRedirectToProfile = () => {
 
 const redirectToProfile = useRedirectToProfile();
 
+const handleUpload = async (file: File) => {
+  const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
+
+  if (isJpgOrPng) {
+    try {
+      const storageRef = ref(storage, `postImages/${CurrentUser.email}/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      return url;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      message.error('Failed to upload file. Please try again.');
+    }
+    console.log('done uploading at all places')
+    message.success('Image Uploaded Successfully!');
+    setTimeout(()=> window.location.reload() , 1000)
+  } else {
+    message.error('You can only upload JPG/PNG file!');
+  }
+
+  return false;
+};
+
+const handleFileSelection = (file: File) => {
+  setSelectedFile(file);
+  message.success('File selected. Click "Upload Photo" to upload.');
+};
+
+
 
   return (
     <Container>
@@ -466,7 +497,20 @@ const redirectToProfile = useRedirectToProfile();
           </Profile>
         <PostInputContainer>
           <StyledInput style={{ height: '70px', marginBottom: '10px' }} placeholder={`What's Happening? ${CurrentUser.first_name}`} value={newPost} onChange={(e) => setNewPost(e.target.value)} />
-          <Button style={{ float : 'right' , width : '70px', margin : 'auto' , marginTop : '15px' }} type= "primary" onClick={handlePost}>
+          <>
+          <Upload
+            name="postPhoto"
+            listType="picture"
+            maxCount={4}
+            accept="image/jpeg,image/png"
+            beforeUpload={handleFileSelection}
+          >
+            <Button icon={<UploadOutlined />}>Add Photo</Button>
+          </Upload>
+          </>
+          <Button style={{ float : 'right' , width : '70px', margin : 'auto' , marginTop : '15px' }} type= "primary" onClick={() => {
+            handlePost(selectedFile)
+          }}>
             Post
           </Button>
         </PostInputContainer>

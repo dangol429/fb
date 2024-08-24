@@ -300,7 +300,7 @@ const MyProfilePage: React.FC = () => {
           console.error('User not found for email:', CurrentUser.email);
         }
 
-      setEditMode(false); // Reset edit mode
+      setEditMode(false); 
       await updatePostProfile(values)
       await changeAuthState(values)
     } catch (error: unknown) {
@@ -433,10 +433,6 @@ const MyProfilePage: React.FC = () => {
     }
   };
   
-  
-
-
-
   const handleDone = async () => {
     setLoading(true);
     console.log("it has begun")

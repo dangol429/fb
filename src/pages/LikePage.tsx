@@ -1,244 +1,129 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Avatar, Button } from 'antd';
+import { Card, Avatar, Button, Empty, Spin } from 'antd';
 import styled from 'styled-components';
-import Sidebar from '../components/sidebar';
-import { useSelector } from 'react-redux';
+import AppLayout from '../components/AppLayout';
 import { doc, collection, query, where, getDocs, updateDoc, getDoc } from 'firebase/firestore';
 import { firestore } from '../firebase';
-import { UserOutlined} from '@ant-design/icons';
-
+import { UserOutlined, LikeFilled } from '@ant-design/icons';
+import { useAppSelector } from '../hooks';
+import { LikeData, Post } from '../types';
+import { brand } from '../theme';
 
 const { Meta } = Card;
-const { Content } = Layout;
-
-// Define types for Post and LikedPostData
-interface Post {
-  post_id: string;
-  email: string;
-  content: string;
-  author: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    profile_picture: string;
-  };
-  comments: string[];
-}
-
-interface LikeData {
-  first_name: string;
-  last_name: string;
-  email: string;
-  profile_picture: string;
-}
 
 interface LikedPostData {
   id: string;
   LikedEmails: string[];
-  likedBy: {
-    email: string;
-    first_name: string;
-    last_name: string;
-    password: string;
-    profile_picture: string;
-  }[];
+  likedBy: LikeData[];
   post_id: string;
   postDetails?: Post;
 }
 
-interface UserData {
-  first_name: string;
-  last_name: string;
-  email: string;
-  password: string;
-  profile_picture: string;
-}
-
-// Auth state type
-interface AuthState {
-  user: UserData ;
-  error: string | null;
-  isAuthenticated: boolean; // Add an isAuthenticated flag
-}
-
-interface AppState {
-  auth: AuthState;
-  // other slices of state...
-}
-
-// Define styled components
-const PageContainer = styled(Layout)`
-  display: flex;
-  min-height: 100vh;
-`;
-
-const ContentContainer = styled(Content)`
-  padding: 20px;
-  margin: 20px auto;
-  max-width: 800px;
-  width: 100%;
-`;
-
 const StyledCard = styled(Card)`
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s;
-
-  &:hover {
-    transform: translateY(-5px);
-  }
-
-  .ant-card-actions {
-    border-top: none;
-    text-align: center;
-
-    .ant-btn {
-      background-color: #ff8c00;
-      border-color: #ff8c00;
-      color: #fff;
-    }
-  }
-
-  .ant-card-meta-avatar {
-    width: 80px;
-    height: 80px;
-    margin-right: 16px;
-  }
-
-  .ant-card-meta-title,
-  .ant-card-meta-description {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 
   .ant-card-meta-title {
-    color: #000;
-    margin-bottom: 5px;
+    color: ${brand.text};
+    font-size: 16px;
   }
-
   .ant-card-meta-description {
-    color: #000;
-    padding: 10px 0;
+    color: ${brand.text};
   }
+`;
+
+const CenterState = styled.div`
+  display: flex;
+  justify-content: center;
+  padding: 60px 0;
 `;
 
 const LikePage: React.FC = () => {
   const [likedPosts, setLikedPosts] = useState<LikedPostData[]>([]);
-  const { isAuthenticated, user } = useSelector((state: AppState) => state.auth);
-  const CurrentUser = useSelector((state: AppState) => state.auth.user);
+  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     const fetchLikedPosts = async () => {
+      setLoading(true);
       try {
-        const likesQuery = query(collection(firestore, 'Likes'));
-        const likesSnapshot = await getDocs(likesQuery);
-  
+        const likesSnapshot = await getDocs(query(collection(firestore, 'Likes')));
         const likedPostsData: LikedPostData[] = [];
-  
+
         for (const docs of likesSnapshot.docs) {
           const likedPost = docs.data() as LikedPostData;
-  
           if (likedPost.LikedEmails.includes(user.email)) {
-            const postDocRef = doc(firestore, "posts", likedPost.post_id);
-            const docSnapshot = await getDoc(postDocRef);
-  
+            const docSnapshot = await getDoc(doc(firestore, 'posts', likedPost.post_id));
             if (docSnapshot.exists()) {
-              const postData = docSnapshot.data() as Post;
-              likedPostsData.push({
-                ...likedPost,
-                postDetails: postData,
-              });
+              likedPostsData.push({ ...likedPost, postDetails: docSnapshot.data() as Post });
             }
           }
         }
-  
         setLikedPosts(likedPostsData);
-      } catch (error: unknown) {
-        console.error('Error fetching liked posts');
+      } catch (error) {
+        console.error('Error fetching liked posts:', error);
+      } finally {
+        setLoading(false);
       }
     };
-  
-    if (isAuthenticated) {
-      fetchLikedPosts();
-    }
-  }, [isAuthenticated, user.email]); // Include dependencies if they are expected to change
-  
+
+    if (isAuthenticated) fetchLikedPosts();
+  }, [isAuthenticated, user.email]);
 
   const handleDislike = async (likeData: LikeData, post_id: string) => {
-    console.log('handleDISLIKE STARTED');
     try {
-      const LikesCollection = collection(firestore, 'Likes');
-  
-      // Create a query to find the document to dislike
-      const dislikeQuery = query(LikesCollection, where('post_id', '==', post_id));
-  
-      // Execute the query
+      const dislikeQuery = query(collection(firestore, 'Likes'), where('post_id', '==', post_id));
       const querySnapshot = await getDocs(dislikeQuery);
-  
-      if (!querySnapshot.empty) {
-        // Iterate through the documents in the result set
-        for (const doc of querySnapshot.docs) {
-          const data = doc.data();
-  
-          // Find the index of the likedBy object with the matching email
-          const index = data.likedBy.findIndex((likedBy: LikeData) => likedBy.email === likeData.email);
-  
-          if (index !== -1) {
-            // Remove the likedBy object from the array
-            data.likedBy.splice(index, 1);
-  
-            // Remove the user's email from LikedEmails array
-            data.LikedEmails = data.LikedEmails.filter((email: string) => email !== likeData.email);
-  
-            // Update the document in Firestore
-            await updateDoc(doc.ref, { likedBy: data.likedBy, LikedEmails: data.LikedEmails });
-  
-            // Trigger a state change to refresh the UI
-            setLikedPosts((prev) => prev.filter((likedPost) => likedPost.post_id !== post_id));            console.log(`Disliked Successfully with post_id ${post_id} and author ${likeData.email} deleted successfully.`);
-  
-            return; // Exit the loop once the dislike is handled
-          }
+
+      for (const docSnap of querySnapshot.docs) {
+        const data = docSnap.data();
+        const index = data.likedBy.findIndex((l: LikeData) => l.email === likeData.email);
+        if (index !== -1) {
+          data.likedBy.splice(index, 1);
+          data.LikedEmails = data.LikedEmails.filter((e: string) => e !== likeData.email);
+          await updateDoc(docSnap.ref, { likedBy: data.likedBy, LikedEmails: data.LikedEmails });
+          setLikedPosts((prev) => prev.filter((p) => p.post_id !== post_id));
+          return;
         }
-  
-        console.error(`Problem with post_id ${post_id} and author ${likeData.email} not found.`);
-      } else {
-        console.error(`Problem with post_id ${post_id} not found.`);
       }
     } catch (error) {
-      console.error('Error deleting like from Firestore', error);
+      console.error('Error removing like:', error);
     }
   };
-  
 
   return (
-    <PageContainer>
-      <Sidebar />
-      <ContentContainer>
-        <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>My Liked Posts</h1>
-        {likedPosts.map((likedPost) => (
+    <AppLayout title="My Likes">
+      {loading ? (
+        <CenterState>
+          <Spin size="large" />
+        </CenterState>
+      ) : likedPosts.length === 0 ? (
+        <Empty description="You haven't liked any posts yet." style={{ marginTop: 48 }} />
+      ) : (
+        likedPosts.map((likedPost) => (
           <StyledCard
             key={likedPost.id}
             actions={[
               <Button
-                key="like"
-                onClick={() => handleDislike(CurrentUser, likedPost.post_id)}
-                icon={<span role="img" aria-label="like">👍</span>}
+                key="dislike"
+                type="text"
+                icon={<LikeFilled style={{ color: brand.primary }} />}
+                onClick={() => handleDislike(user, likedPost.post_id)}
               >
-                {likedPost.likedBy.length} Like
+                Unlike · {likedPost.likedBy.length}
               </Button>,
             ]}
           >
             <Meta
-              avatar={<Avatar size={60} icon={<UserOutlined />} src={likedPost.postDetails?.author?.profile_picture} />}
-              title={<h1 style={{ fontSize: '20px' , position: 'relative' , left: '10px'}}>{`${likedPost.postDetails?.author?.first_name ?? ''} ${likedPost.postDetails?.author?.last_name ?? ''}`}</h1>}
-              description={<p style={{ fontSize: '20px' , position: 'relative'}}>{`${likedPost.postDetails?.content ?? ''}`}</p>}
+              avatar={<Avatar size={56} icon={<UserOutlined />} src={likedPost.postDetails?.author?.profile_picture} />}
+              title={`${likedPost.postDetails?.author?.first_name ?? ''} ${likedPost.postDetails?.author?.last_name ?? ''}`.trim()}
+              description={likedPost.postDetails?.content ?? ''}
             />
           </StyledCard>
-        ))}
-      </ContentContainer>
-    </PageContainer>
+        ))
+      )}
+    </AppLayout>
   );
 };
 

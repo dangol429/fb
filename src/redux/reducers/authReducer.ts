@@ -3,15 +3,21 @@ import {
   CREATE_USER_SUCCESS,
   LOGIN_USER_SUCCESS,
   LOGOUT_USER_SUCCESS,
+  UPDATE_USER,
 } from '../actions/authAction';
 
-import {CreateUserSuccessAction, LoginUserSuccessAction,LogoutUserSuccessAction } from '../actions/authAction'
-// User data type
+import {
+  CreateUserSuccessAction,
+  LoginUserSuccessAction,
+  LogoutUserSuccessAction,
+  UpdateUserAction,
+} from '../actions/authAction';
 
 type AuthAction =
   CreateUserSuccessAction |
   LoginUserSuccessAction |
-  LogoutUserSuccessAction;
+  LogoutUserSuccessAction |
+  UpdateUserAction;
 
 
 export interface UserData {
@@ -52,7 +58,6 @@ const authReducer = (state: AuthState = initialState, action: AuthAction) => {
         isAuthenticated: true,
       };
       localStorage.setItem('authState', JSON.stringify(updatedStateOnLogin));
-      console.log(updatedStateOnLogin)
       return updatedStateOnLogin;
     }
     case LOGOUT_USER_SUCCESS: {
@@ -62,9 +67,18 @@ const authReducer = (state: AuthState = initialState, action: AuthAction) => {
         error: null,
         isAuthenticated: false,
       };
-      console.log('case is working as well.')
       localStorage.removeItem('authState');
       return updatedStateOnLogout;
+    }
+    case UPDATE_USER: {
+      // Merge changed fields into the current user and persist.
+      const mergedUser = { ...(state.user ?? {}), ...action.payload } as UserData;
+      const updatedState = { ...state, user: mergedUser };
+      localStorage.setItem(
+        'authState',
+        JSON.stringify({ user: mergedUser, error: null, isAuthenticated: state.isAuthenticated })
+      );
+      return updatedState;
     }
     default:
       return state;

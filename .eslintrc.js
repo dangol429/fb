@@ -23,10 +23,14 @@ module.exports = {
       '@typescript-eslint',
     ],
     rules: {
-      // Place to specify ESLint rules - can be used to overwrite rules specified from the extended configs
-      // e.g. "@typescript-eslint/explicit-function-return-type": "off",
-      'no-unused-vars': 'warn', // Warns about unused variables
-      'no-console': 'off', // Allows the use of console.log
+      // Use the TypeScript-aware unused-vars rule so parameter names inside
+      // type/interface signatures aren't wrongly flagged.
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      'no-console': ['warn', { allow: ['warn', 'error'] }], // console.log discouraged
       'react/react-in-jsx-scope': 'off', // Not necessary with React 17+
       'react/prop-types': 'off', // Disables prop-types as we use TypeScript for type checking
     },

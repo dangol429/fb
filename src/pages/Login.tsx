@@ -1,122 +1,77 @@
-// Login.tsx
-
 import React from 'react';
-import { Form, Input, Button } from 'antd';
+import { Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import Logo from '../images/logo.webp';
-import { ToastContainer} from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../redux/actions/authAction';
 import { useDispatch } from 'react-redux';
 import { ThunkDispatch } from 'redux-thunk';
-import { useSelector } from 'react-redux';
+import { AnyAction } from 'redux';
+import { AppState } from '../types';
+import { brand } from '../theme';
 
-interface Values { 
+const { Title, Text } = Typography;
+
+interface Values {
   email: string;
   password: string;
 }
-interface UserData {
-  first_name: string;
-  last_name: string;
-  email: string;
-  password: string;
-  profile_picture: string;
-}
 
-// Auth state type
-interface AuthState {
-  user: UserData ;
-  error: string | null;
-  isAuthenticated: boolean; // Add an isAuthenticated flag
-}
-
-interface AppState {
-  auth: AuthState;
-  // other slices of state...
-}
-
-const LOGIN_USER_SUCCESS = 'LOGIN_USER_SUCCESS';
-
-// Action type definitions
-interface LoginUserSuccessAction {
-  type: typeof LOGIN_USER_SUCCESS;
-}
-
-// Union of all action types
-type AppAction = LoginUserSuccessAction;
-
-const Container = styled.div`
-  height: 90vh;
+const Page = styled.div`
+  min-height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
-  flex-direction: column;
-  gap: 0px;
-  @media (max-width: 600px) {
-    position: relative;
-  }
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #e7f0ff 0%, #f0f2f5 100%);
 `;
 
-const TopContainer = styled.div`
-  flex: 1;
+const Card = styled.div`
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   text-align: center;
-  margin-top: 10rem;
 `;
 
-const BottomContainer = styled.div`
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  background-color: #f6f6f6;
-  border-radius: 8px;
-  text-align: center;
-  width: 30%;
-  margin-bottom: 10rem;
-  @media (max-width: 600px) {
-    width: auto;
-  }
-`;
-
-const Heading = styled.h2`
-  font-size: 50px;
-`;
-
-const Image = styled.img`
-  max-width: 300px;
+const LogoImg = styled.img`
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 12px;
 `;
 
 const Login = () => {
   const [form] = Form.useForm();
-  const isAuthenticated = useSelector((state: AppState) => state.auth.isAuthenticated);
-  console.log(isAuthenticated)
   const navigate = useNavigate();
+  const [submitting, setSubmitting] = React.useState(false);
+  const dispatch = useDispatch<ThunkDispatch<AppState, void, AnyAction>>();
 
-  const dispatch = useDispatch<ThunkDispatch<AppState, void, AppAction>>();
-  
   const onFinish = async (values: Values) => {
-    try{
-      console.log("state: " + isAuthenticated);
-      const loginResponse =  await dispatch(loginUser(values.email, values.password));
-      if (loginResponse.success){
-        setTimeout(() => navigate('/dashboard'), 2000);
-        console.log(isAuthenticated)
+    setSubmitting(true);
+    try {
+      const loginResponse = await dispatch(loginUser(values.email, values.password));
+      if (loginResponse.success) {
+        navigate('/dashboard');
       }
+    } finally {
+      setSubmitting(false);
     }
-    catch(error: unknown){
-      console.log('error')
-    }
-  }
-
+  };
 
   return (
-    <Container>
-      <TopContainer>
-        <Image src={Logo} alt="" />
-      </TopContainer>
-      <BottomContainer>
-        <Heading>Login</Heading>
-        <Form form={form} name="login" onFinish={onFinish}>
+    <Page>
+      <Card>
+        <LogoImg src={Logo} alt="logo" />
+        <Title level={2} style={{ marginBottom: 4 }}>
+          Welcome back
+        </Title>
+        <Text type="secondary">Log in to continue to Socially</Text>
+
+        <Form form={form} name="login" onFinish={onFinish} layout="vertical" style={{ marginTop: 28, textAlign: 'left' }}>
           <Form.Item
             name="email"
             rules={[
@@ -124,31 +79,29 @@ const Login = () => {
               { type: 'email', message: 'Please enter a valid email address!' },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Email" />
+            <Input prefix={<UserOutlined />} placeholder="Email" size="large" autoComplete="email" />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[
-              { required: true, message: 'Please input your password!' },
-            ]}
+            rules={[{ required: true, message: 'Please input your password!' }]}
           >
-            <Input.Password prefix={<LockOutlined />} type="password" placeholder="Password" />
+            <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" autoComplete="current-password" />
           </Form.Item>
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit">
-              Login
+          <Form.Item style={{ marginBottom: 12 }}>
+            <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
+              Log in
             </Button>
           </Form.Item>
-          <Button type="link" onClick={() => navigate('/')}>
-          Dont have an account? Signup!
-        </Button>
         </Form>
-      </BottomContainer>
-      <ToastContainer />
-    </Container>
-    
+
+        <Text type="secondary">Don&apos;t have an account? </Text>
+        <Button type="link" style={{ padding: 4, color: brand.primary }} onClick={() => navigate('/')}>
+          Sign up
+        </Button>
+      </Card>
+    </Page>
   );
 };
 

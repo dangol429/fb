@@ -224,29 +224,23 @@ const MyProfilePage: React.FC = () => {
       const postsCollection = collection(firestore, 'posts');
       const postsQuery = query(postsCollection, where('author.email', '==', CurrentUser.email));
       const postsSnapshot = await getDocs(postsQuery);
-  
+
       if (postsSnapshot.size > 0) {
-        const postDoc = postsSnapshot.docs[0];
-        const postRef = doc(postsCollection, postDoc.id);
-  
-        // Extract the currenauthor data
-        const currentAuthor = postDoc.data().author;
-  
-        // Check if the current author email matches the logged-in user's email
-        if (currentAuthor.email === CurrentUser.email) {
-          // Update the post with new author information
-          await updateDoc(postRef, {
-            'author.first_name': values.first_name,
-            'author.last_name': values.last_name,
-          });
-          console.log('Post author information updated');
-        } else {
-          console.error('Unauthorized to update post author information');
-        }
+        // Update the author name on EVERY post the user owns, not just the first one.
+        await Promise.all(
+          postsSnapshot.docs.map((postDoc) => {
+            const postRef = doc(postsCollection, postDoc.id);
+            return updateDoc(postRef, {
+              'author.first_name': values.first_name,
+              'author.last_name': values.last_name,
+            });
+          })
+        );
+        console.log('Post author information updated on all posts');
       } else {
         console.error('Post not found for author email:', CurrentUser.email);
       }
-  
+
       setEditMode(false); // Reset edit mode
     } catch (error: unknown) {
       console.error('Error updating post profile:');
@@ -320,23 +314,16 @@ const MyProfilePage: React.FC = () => {
       const postsSnapshot = await getDocs(postsQuery);
   
       if (postsSnapshot.size > 0) {
-        postsSnapshot.docs.forEach(async (postDoc) => {
-          const postRef = doc(postsCollection, postDoc.id);
-  
-          // Extract the current author data
-          const currentAuthor = postDoc.data().author;
-  
-          // Check if the current author email matches the logged-in user's email
-          if (currentAuthor.email === CurrentUser.email) {
-            console.log('Updating profile picture in post:', postDoc.id);
-            // Update the post with the new author information
-            await updateDoc(postRef, {
+        // Await every write so the caller (and the page reload) does not race
+        // ahead of the Firestore updates.
+        await Promise.all(
+          postsSnapshot.docs.map((postDoc) => {
+            const postRef = doc(postsCollection, postDoc.id);
+            return updateDoc(postRef, {
               'author.profile_picture': imageUrl,
             });
-          } else {
-            console.warn('Unauthorized to update post:', postDoc.id);
-          }
-        });
+          })
+        );
         console.log('All matching posts updated');
       } else {
         console.error('No posts found for author email:', CurrentUser.email);
@@ -404,28 +391,32 @@ const MyProfilePage: React.FC = () => {
       const postsQuery = query(postsCollection);
       const postsSnapshot = await getDocs(postsQuery);
   
-      // Iterate through each post
-      postsSnapshot.forEach(async (postDoc) => {
-        const postRef = doc(postsCollection, postDoc.id);
-  
-        // Get the comments array from the post document
-        const comments = postDoc.data().comments;
-  
-        // Check if comments is defined and is an array
-        if (Array.isArray(comments)) {
-          // Update each comment if author.email matches CurrentUser.email
-          comments.forEach(async (comment: Comment) => {
-            if (comment.author.email === CurrentUser.email) {
-              // Update the comment's author profile_picture
-              comment.author.profile_picture = imageUrl;
+      // Iterate through each post, awaiting every write.
+      await Promise.all(
+        postsSnapshot.docs.map((postDoc) => {
+          const postRef = doc(postsCollection, postDoc.id);
+
+          // Get the comments array from the post document
+          const comments = postDoc.data().comments;
+
+          // Only rewrite posts whose comments actually contain this user.
+          if (Array.isArray(comments)) {
+            let changed = false;
+            comments.forEach((comment: Comment) => {
+              if (comment.author.email === CurrentUser.email) {
+                comment.author.profile_picture = imageUrl;
+                changed = true;
+              }
+            });
+
+            if (changed) {
+              return updateDoc(postRef, { comments });
             }
-          });
-  
-          // Update the post with the modified comments array
-          await updateDoc(postRef, { comments });
-        }
-      });
-  
+          }
+          return Promise.resolve();
+        })
+      );
+
       console.log('Comments profile pictures updated successfully!');
     } catch (error: unknown) {
       console.error('Error updating comments profile pictures:');
@@ -517,7 +508,7 @@ const MyProfilePage: React.FC = () => {
             initialValues={{
               email: CurrentUser.email,
               first_name: CurrentUser.first_name,
-              last_ame: CurrentUser.last_name,
+              last_name: CurrentUser.last_name,
             }}
           >
             <Form.Item label="Email ID">

@@ -1,39 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Layout, Input, Button, message, Avatar, Upload } from 'antd';
-import Sidebar from '../components/sidebar';
-import Posts from '../components/posts';
-import createPost from '../firebase/createPost'
-import styled from 'styled-components';
-import { useSelector } from 'react-redux';
-import {  doc, getDoc, updateDoc, addDoc, getDocs, arrayUnion, where, query, collection, Timestamp } from 'firebase/firestore';
-import { firestore } from '../firebase'; // Assuming your firestore instance is exported as `firestore`
-import { v4 as uuidv4 } from 'uuid';
-import InfiniteScroll from 'react-infinite-scroll-component';
-import PostSkeleton from '../components/skeleton/postsSkeleton';
-import './home.css'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Layout, Input, Button, message, Avatar, Upload } from "antd";
+import Sidebar from "../components/sidebar";
+import Posts from "../components/posts";
+import createPost from "../firebase/createPost";
+import styled from "styled-components";
+import { useSelector } from "react-redux";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  addDoc,
+  getDocs,
+  arrayUnion,
+  where,
+  query,
+  collection,
+  Timestamp,
+} from "firebase/firestore";
+import { firestore } from "../firebase"; // Assuming your firestore instance is exported as `firestore`
+import { v4 as uuidv4 } from "uuid";
+import InfiniteScroll from "react-infinite-scroll-component";
+import PostSkeleton from "../components/skeleton/postsSkeleton";
+import "./home.css";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "../firebase";
 
 // Firebase imports
-import { 
-  orderBy, 
-  startAfter, 
-  limit, 
-  DocumentSnapshot 
-} from 'firebase/firestore';
-import { UploadOutlined, UserOutlined } from '@ant-design/icons';
-
-
+import {
+  orderBy,
+  startAfter,
+  limit,
+  DocumentSnapshot,
+} from "firebase/firestore";
+import { UploadOutlined, UserOutlined } from "@ant-design/icons";
 
 const { Content } = Layout;
 
 interface CommentAuthor {
-  email: string ;
-  first_name: string ;
-  last_name: string ;
-  password: string ;
-  profile_picture: string ;
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  profile_picture: string;
 }
 
 interface Comment {
@@ -52,7 +61,7 @@ interface UserData {
 
 // Auth state type
 interface AuthState {
-  user: UserData ;
+  user: UserData;
   error: string | null;
   isAuthenticated: boolean; // Add an isAuthenticated flag
 }
@@ -136,7 +145,9 @@ const Profile = styled.div`
 const CustomAvatar = styled(Avatar)`
   border: 2px solid #1890ff;
   cursor: pointer; /* Change cursor to pointer on hover */
-  transition: transform 0.3s ease, border-color 0.3s ease; /* Smooth transition for transform and border color */
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease; /* Smooth transition for transform and border color */
 
   &:hover {
     transform: scale(1.05); /* Slightly increase size on hover */
@@ -145,11 +156,13 @@ const CustomAvatar = styled(Avatar)`
 `;
 
 const HOME = () => {
-  const [newPost, setNewPost] = useState('');
+  const [newPost, setNewPost] = useState("");
   const [posts, setPosts] = useState<Post[]>([]); // Assuming 'any' as the type for your posts. You might want to replace it with the actual type.
   // const [dummyState, setDummyState] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [lastVisible, setLastVisible] = useState<DocumentSnapshot<Post> | null>(null);
+  const [lastVisible, setLastVisible] = useState<DocumentSnapshot<Post> | null>(
+    null,
+  );
   const [hasMore, setHasMore] = useState(true);
 
   // Assuming samplePosts is defined somewhere in your code
@@ -161,43 +174,55 @@ const HOME = () => {
   const last_name = CurrentUser.last_name;
   const profile_picture = CurrentUser.profile_picture;
 
-
   useEffect(() => {
-    fetchPosts()
+    fetchPosts();
   }, []); // Run the effect whenever newPost changes
 
   const fetchPosts = async () => {
-    console.log('fetchPosts called');
+    console.log("fetchPosts called");
     try {
-      const postsCollection = collection(firestore, 'posts');
+      const postsCollection = collection(firestore, "posts");
       let queryConstraint;
 
       if (lastVisible) {
-        console.log('visible')
+        console.log("visible");
         // Fetch the next set of posts
-        queryConstraint = query(postsCollection, orderBy('createdAt', 'desc'), startAfter(lastVisible), limit(10));
+        queryConstraint = query(
+          postsCollection,
+          orderBy("createdAt", "desc"),
+          startAfter(lastVisible),
+          limit(10),
+        );
       } else {
         // Fetch the first set of posts
-        queryConstraint = query(postsCollection, orderBy('createdAt', 'desc'), limit(10));
-
+        queryConstraint = query(
+          postsCollection,
+          orderBy("createdAt", "desc"),
+          limit(10),
+        );
       }
-  
+
       const postsSnapshot = await getDocs(queryConstraint);
-      
+
       // If no documents are returned, we've reached the end
       if (postsSnapshot.empty) {
         setHasMore(false);
-        console.log('has more is empty')
+        console.log("has more is empty");
       }
-  
-      const fetchedPosts = postsSnapshot.docs.map(doc => ({ ...doc.data(), post_id: doc.id })) as Post[];
-      console.log(fetchedPosts)
+
+      const fetchedPosts = postsSnapshot.docs.map((doc) => ({
+        ...doc.data(),
+        post_id: doc.id,
+      })) as Post[];
+      console.log(fetchedPosts);
       // Append new posts to the existing posts
-      setPosts(prevPosts => [...prevPosts, ...fetchedPosts]);
+      setPosts((prevPosts) => [...prevPosts, ...fetchedPosts]);
       // Update lastVisible to the last fetched document
-      const lastPostSnapshot = postsSnapshot.docs[postsSnapshot.docs.length - 1];
-      const lastVisiblePost = lastPostSnapshot as unknown as DocumentSnapshot<Post>;
-      console.log(lastVisiblePost)
+      const lastPostSnapshot =
+        postsSnapshot.docs[postsSnapshot.docs.length - 1];
+      const lastVisiblePost =
+        lastPostSnapshot as unknown as DocumentSnapshot<Post>;
+      console.log(lastVisiblePost);
 
       setLastVisible(lastVisiblePost);
       // Update hasMore depending on the number of fetched documents
@@ -207,14 +232,11 @@ const HOME = () => {
       // setHasMore(false);
     }
   };
-  
+
   // useEffect(() => {
   //   setTimeout(() => window.scrollTo(0, 0), 40); // Adjust delay as needed
   // }, []);
-  
-  
 
-  
   // const fetchLikes = async () => {
   //   try {
   //     const LikesCollection = collection(firestore, 'Likes');
@@ -226,329 +248,393 @@ const HOME = () => {
   //     console.error('Error fetching Likes:', error.message);
   //   }
   // };
-  
 
-  const handlePost = async (selectedFile: File|null) => {
-    if (newPost.trim() !== '' || selectedFile) {
-      const newPostObject = {
-        post_id: uuidv4(),
-        email: email,
-        content: newPost,
-        author: {
-          first_name: first_name,
-          last_name: last_name,
-          email: email,
-          profile_picture: profile_picture,
-        },
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: null,
-        comments: [],
-        photo: selectedFile ? await handleUpload(selectedFile) : undefined
-      };
-      createPost(newPostObject);
-      setNewPost('');
-      setTimeout(()=>window.location.reload(), 1000);
-      message.success('Post Created Succesfully!')
+  const handlePost = async (selectedFile: File | null) => {
+    if (newPost.trim() === "" && !selectedFile) {
+      message.warning("Write something or add a photo before posting.");
+      return;
     }
+
+    const uploadedPhoto = selectedFile
+      ? await handleUpload(selectedFile)
+      : undefined;
+    const newPostObject = {
+      post_id: uuidv4(),
+      email: email,
+      content: newPost,
+      author: {
+        first_name: first_name,
+        last_name: last_name,
+        email: email,
+        profile_picture: profile_picture,
+      },
+      createdAt: Timestamp.fromDate(new Date()),
+      updatedAt: null,
+      comments: [],
+      // handleUpload returns a URL on success, or false/undefined otherwise.
+      photo: typeof uploadedPhoto === "string" ? uploadedPhoto : undefined,
+    };
+
+    await createPost(newPostObject);
+
+    setPosts((prevPosts) => [newPostObject as unknown as Post, ...prevPosts]);
+    setNewPost("");
+    setSelectedFile(null);
+    message.success("Post Created Successfully!");
   };
 
   const handleComment = async (post_id: string, comment: Comment) => {
     try {
-        const postDocRef = doc(firestore, "posts", post_id);
-        const docSnapshot = await getDoc(postDocRef);
-        console.log("Post Id for comment: ", post_id);
+      const postDocRef = doc(firestore, "posts", post_id);
+      const docSnapshot = await getDoc(postDocRef);
+      console.log("Post Id for comment: ", post_id);
 
-        // Check if the document exists
-        if (docSnapshot.exists()) {
-            console.log('Commenting on post');
+      // Check if the document exists
+      if (docSnapshot.exists()) {
+        console.log("Commenting on post");
 
-            // Now you can update the comments array in that document
-            await updateDoc(postDocRef, {
-                comments: arrayUnion(comment),
-                updatedAt: Timestamp.fromDate(new Date()),
-            });
-        } else {
-            console.error('Error: ', `Document with post_id ${post_id} does not exist.`);
-        }
+        // Now you can update the comments array in that document
+        await updateDoc(postDocRef, {
+          comments: arrayUnion(comment),
+          updatedAt: Timestamp.fromDate(new Date()),
+        });
+      } else {
+        console.error(
+          "Error: ",
+          `Document with post_id ${post_id} does not exist.`,
+        );
+      }
     } catch (error) {
-        if (error instanceof Error) {
-            console.error('Error: ', error.message);
-        }
+      if (error instanceof Error) {
+        console.error("Error: ", error.message);
+      }
     }
-};
+  };
 
+  const handleLike = async (LikeData: LikeData, post_id: string) => {
+    try {
+      const LikesCollection = collection(firestore, "Likes");
+      console.log("Post Id for like: ", post_id);
 
- const handleLike = async ( LikeData : LikeData, post_id: string)=> {
-      try {
-       const LikesCollection = collection(firestore, 'Likes');
-       console.log("Post Id for like: ",post_id)
-    
       // Add the post data to the collection
-      const likesQuery = query(LikesCollection, where('post_id', '==', post_id));
+      const likesQuery = query(
+        LikesCollection,
+        where("post_id", "==", post_id),
+      );
       const likesSnapshot = await getDocs(likesQuery);
-      console.log(LikeData)
+      console.log(LikeData);
 
       if (!likesSnapshot.empty) {
-      // If the post_id is present, update the existing document
-      const likeDocRef = likesSnapshot.docs[0].ref;
-      await updateDoc(likeDocRef, {
-        likedBy: arrayUnion(LikeData),
-        LikedEmails: arrayUnion(LikeData.email)
-      });
+        // If the post_id is present, update the existing document
+        const likeDocRef = likesSnapshot.docs[0].ref;
+        await updateDoc(likeDocRef, {
+          likedBy: arrayUnion(LikeData),
+          LikedEmails: arrayUnion(LikeData.email),
+        });
       } else {
         // If the post_id is not present, add a new document
         await addDoc(LikesCollection, {
           post_id,
           likedBy: [LikeData],
-          LikedEmails: [LikeData.email]
+          LikedEmails: [LikeData.email],
         });
-    // setDummyState((prev) => !prev);
-    console.log('Liked successfully!');
-  }
- } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error('Error Liking:', error.message);
-    } else {
-      console.error('Error Liking:', error);
-    }
-  }
-}
-
-const handleDislike = async (LikeData : LikeData , post_id : string ) => {
-  try {
-    const LikesCollection = collection(firestore, 'Likes');
-    
-    // Create a query to find the document to dislike
-    const dislikeQuery = query(LikesCollection, where('post_id', '==', post_id));
-    
-    // Execute the query
-    const querySnapshot = await getDocs(dislikeQuery);
-    
-    if (!querySnapshot.empty) {
-      // Iterate through the documents in the result set
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        
-        // Find the index of the likedBy object with the matching email
-        const index = data.likedBy.findIndex((likedBy: LikeData) => likedBy.email === LikeData.email);
-        
-        if (index !== -1) {
-          // Remove the likedBy object from the array
-          data.likedBy.splice(index, 1);
-
-          data.LikedEmails = data.LikedEmails.filter((email: string) => email !== LikeData.email);
-          await updateDoc(doc.ref, { LikedEmails: data.LikedEmails });
-          
-          // Update the document in Firestore
-          await updateDoc(doc.ref, { likedBy: data.likedBy });
-          
-          // Trigger a state change to refresh the UI
-          // setDummyState((prev) => !prev);
-          
-          console.log(`Unliked Successfully with post_id ${post_id} and author ${LikeData.email} deleted successfully.`);
-          
-          return; // Exit the loop once the dislike is handled
-        }
+        // setDummyState((prev) => !prev);
+        console.log("Liked successfully!");
       }
-      
-      console.error(`Problem with post_id ${post_id} and author ${LikeData.email} not found.`);
-    } else {
-      console.error(`Problem with post_id ${post_id} not found.`);
-    }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    }
-  }
-}
-
-const handleBookmark = async (bookmarkData : BookmarkData, post_id: string) => {
-  try {
-    const BookmarksCollection = collection(firestore, 'Bookmarks');
-
-    // Add the post data to the collection
-    const bookmarksQuery = query(BookmarksCollection, where('post_id', '==', post_id));
-    const bookmarksSnapshot = await getDocs(bookmarksQuery);
-
-    if (!bookmarksSnapshot.empty) {
-      // If the post_id is present, update the existing document
-      const bookmarkDocRef = bookmarksSnapshot.docs[0].ref;
-      await updateDoc(bookmarkDocRef, {
-        bookmarkedBy: arrayUnion(bookmarkData),
-        BookmarkedEmails: arrayUnion(bookmarkData.email),
-      });
-    } else {
-      // If the post_id is not present, add a new document
-      await addDoc(BookmarksCollection, {
-        post_id,
-        bookmarkedBy: [bookmarkData],
-        BookmarkedEmails: [bookmarkData.email],
-      });
-    }
-    // setDummyState((prev) => !prev);
-    console.log('Bookmarked successfully!');
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    }
-  }
-};
-
-const handleUnbookmark = async (bookmarkData: BookmarkData, post_id: string) => {
-  try {
-    const BookmarksCollection = collection(firestore, 'Bookmarks');
-
-    // Create a query to find the document to unbookmark
-    const unbookmarkQuery = query(BookmarksCollection, where('post_id', '==', post_id));
-
-    // Execute the query
-    const querySnapshot = await getDocs(unbookmarkQuery);
-
-    if (!querySnapshot.empty) {
-      // Iterate through the documents in the result set
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-
-        // Find the index of the BookmarkedEmails in the array
-        const index = data.bookmarkedBy.findIndex((bookmarkedBy: BookmarkData) => bookmarkedBy.email=== bookmarkData.email)
-
-        if (index !== -1) {
-          // Remove the email from the BookmarkedEmails array
-          data.bookmarkedBy.splice(index, 1);
-
-          data.BookmarkedEmails = data.BookmarkedEmails.filter((email: string) => email !== bookmarkData.email);
-          // Update the document in Firestore
-          await updateDoc(doc.ref, { BookmarkedEmails: data.BookmarkedEmails });
-
-          await updateDoc(doc.ref, { bookmarkedBy: data.bookmarkedBy });
-          // Trigger a state change to refresh the UI
-          // setDummyState((prev) => !prev);
-
-          console.log(`Unbookmarked Successfully with post_id ${post_id} and author ${bookmarkData.email} removed successfully.`);
-
-          return; // Exit the loop once the unbookmark is handled
-        }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error Liking:", error.message);
+      } else {
+        console.error("Error Liking:", error);
       }
-
-      console.error(`Problem with post_id ${post_id} and author ${bookmarkData.email} not found.`);
-    } else {
-      console.error(`Problem with post_id ${post_id} not found.`);
     }
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    }
-  }
-};
-
-const loadMorePosts = () => {
-  setTimeout(() => {
-    fetchPosts();
-  }, 2000);
-};
-
-const useRedirectToProfile = () => {
-  const navigate = useNavigate();
-
-  return () => {
-    navigate('/my-profile');
   };
-};
 
-const redirectToProfile = useRedirectToProfile();
-
-const handleUpload = async (file: File) => {
-  const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
-
-  if (isJpgOrPng) {
+  const handleDislike = async (LikeData: LikeData, post_id: string) => {
     try {
-      const storageRef = ref(storage, `postImages/${CurrentUser.email}/${file.name}`);
+      const LikesCollection = collection(firestore, "Likes");
+
+      // Create a query to find the document to dislike
+      const dislikeQuery = query(
+        LikesCollection,
+        where("post_id", "==", post_id),
+      );
+
+      // Execute the query
+      const querySnapshot = await getDocs(dislikeQuery);
+
+      if (!querySnapshot.empty) {
+        // Iterate through the documents in the result set
+        for (const doc of querySnapshot.docs) {
+          const data = doc.data();
+
+          // Find the index of the likedBy object with the matching email
+          const index = data.likedBy.findIndex(
+            (likedBy: LikeData) => likedBy.email === LikeData.email,
+          );
+
+          if (index !== -1) {
+            // Remove the likedBy object from the array
+            data.likedBy.splice(index, 1);
+
+            data.LikedEmails = data.LikedEmails.filter(
+              (email: string) => email !== LikeData.email,
+            );
+            await updateDoc(doc.ref, { LikedEmails: data.LikedEmails });
+
+            // Update the document in Firestore
+            await updateDoc(doc.ref, { likedBy: data.likedBy });
+
+            // Trigger a state change to refresh the UI
+            // setDummyState((prev) => !prev);
+
+            console.log(
+              `Unliked Successfully with post_id ${post_id} and author ${LikeData.email} deleted successfully.`,
+            );
+
+            return; // Exit the loop once the dislike is handled
+          }
+        }
+
+        console.error(
+          `Problem with post_id ${post_id} and author ${LikeData.email} not found.`,
+        );
+      } else {
+        console.error(`Problem with post_id ${post_id} not found.`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message);
+      }
+    }
+  };
+
+  const handleBookmark = async (
+    bookmarkData: BookmarkData,
+    post_id: string,
+  ) => {
+    try {
+      const BookmarksCollection = collection(firestore, "Bookmarks");
+
+      // Add the post data to the collection
+      const bookmarksQuery = query(
+        BookmarksCollection,
+        where("post_id", "==", post_id),
+      );
+      const bookmarksSnapshot = await getDocs(bookmarksQuery);
+
+      if (!bookmarksSnapshot.empty) {
+        // If the post_id is present, update the existing document
+        const bookmarkDocRef = bookmarksSnapshot.docs[0].ref;
+        await updateDoc(bookmarkDocRef, {
+          bookmarkedBy: arrayUnion(bookmarkData),
+          BookmarkedEmails: arrayUnion(bookmarkData.email),
+        });
+      } else {
+        // If the post_id is not present, add a new document
+        await addDoc(BookmarksCollection, {
+          post_id,
+          bookmarkedBy: [bookmarkData],
+          BookmarkedEmails: [bookmarkData.email],
+        });
+      }
+      // setDummyState((prev) => !prev);
+      console.log("Bookmarked successfully!");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message);
+      }
+    }
+  };
+
+  const handleUnbookmark = async (
+    bookmarkData: BookmarkData,
+    post_id: string,
+  ) => {
+    try {
+      const BookmarksCollection = collection(firestore, "Bookmarks");
+
+      // Create a query to find the document to unbookmark
+      const unbookmarkQuery = query(
+        BookmarksCollection,
+        where("post_id", "==", post_id),
+      );
+
+      // Execute the query
+      const querySnapshot = await getDocs(unbookmarkQuery);
+
+      if (!querySnapshot.empty) {
+        // Iterate through the documents in the result set
+        for (const doc of querySnapshot.docs) {
+          const data = doc.data();
+
+          // Find the index of the BookmarkedEmails in the array
+          const index = data.bookmarkedBy.findIndex(
+            (bookmarkedBy: BookmarkData) =>
+              bookmarkedBy.email === bookmarkData.email,
+          );
+
+          if (index !== -1) {
+            // Remove the email from the BookmarkedEmails array
+            data.bookmarkedBy.splice(index, 1);
+
+            data.BookmarkedEmails = data.BookmarkedEmails.filter(
+              (email: string) => email !== bookmarkData.email,
+            );
+            // Update the document in Firestore
+            await updateDoc(doc.ref, {
+              BookmarkedEmails: data.BookmarkedEmails,
+            });
+
+            await updateDoc(doc.ref, { bookmarkedBy: data.bookmarkedBy });
+            // Trigger a state change to refresh the UI
+            // setDummyState((prev) => !prev);
+
+            console.log(
+              `Unbookmarked Successfully with post_id ${post_id} and author ${bookmarkData.email} removed successfully.`,
+            );
+
+            return; // Exit the loop once the unbookmark is handled
+          }
+        }
+
+        console.error(
+          `Problem with post_id ${post_id} and author ${bookmarkData.email} not found.`,
+        );
+      } else {
+        console.error(`Problem with post_id ${post_id} not found.`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error(error.message);
+      }
+    }
+  };
+
+  const loadMorePosts = () => {
+    setTimeout(() => {
+      fetchPosts();
+    }, 2000);
+  };
+
+  const useRedirectToProfile = () => {
+    const navigate = useNavigate();
+
+    return () => {
+      navigate("/my-profile");
+    };
+  };
+
+  const redirectToProfile = useRedirectToProfile();
+
+  const handleUpload = async (file: File): Promise<string | false> => {
+    const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
+
+    if (!isJpgOrPng) {
+      message.error("You can only upload JPG/PNG file!");
+      return false;
+    }
+
+    try {
+      const storageRef = ref(
+        storage,
+        `postImages/${CurrentUser.email}/${file.name}`,
+      );
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       return url;
     } catch (error) {
-      console.error('Error uploading file:', error);
-      message.error('Failed to upload file. Please try again.');
+      console.error("Error uploading file:", error);
+      message.error("Failed to upload file. Please try again.");
+      return false;
     }
-    console.log('done uploading at all places')
-    message.success('Image Uploaded Successfully!');
-    setTimeout(()=> window.location.reload() , 1000)
-  } else {
-    message.error('You can only upload JPG/PNG file!');
-  }
+  };
 
-  return false;
-};
-
-const handleFileSelection = (file: File) => {
-  setSelectedFile(file);
-  message.success('File selected. Click "Upload Photo" to upload.');
-};
-
-
+  const handleFileSelection = (file: File) => {
+    setSelectedFile(file);
+    message.success('Photo added. Click "Post" to share it.');
+    return false;
+  };
 
   return (
     <Container>
-    <Layout style={{ minHeight: '90vh' }}>
-      <Sidebar />
-      <Layout>
-      <Profile>
-          <CustomAvatar onClick={redirectToProfile} size={90} src={CurrentUser.profile_picture}  icon={<UserOutlined/>}/>
-          </Profile>
-        <PostInputContainer>
-          <StyledInput style={{ height: '70px', marginBottom: '10px' }} placeholder={`What's Happening? ${CurrentUser.first_name}`} value={newPost} onChange={(e) => setNewPost(e.target.value)} />
-          <>
-          <Upload
-            name="postPhoto"
-            listType="picture"
-            maxCount={4}
-            accept="image/jpeg,image/png"
-            beforeUpload={handleFileSelection}
-          >
-            <Button icon={<UploadOutlined />}>Add Photo</Button>
-          </Upload>
-          </>
-          <Button style={{ float : 'right' , width : '70px', margin : 'auto' , marginTop : '15px' }} type= "primary" onClick={() => {
-            handlePost(selectedFile)
-          }}>
-            Post
-          </Button>
-        </PostInputContainer>
-        <Content style={{ padding: '24px' }}>
-        <InfiniteScroll
-          dataLength={posts.length}
-          next={loadMorePosts}
-          hasMore={hasMore}
-          loader=
-          {
-            <>
-              <PostSkeleton />
-              <PostSkeleton />
-              <PostSkeleton />
-            </>
-          }
-          endMessage={
-            <p style={{ textAlign: 'center' }}>
-              <b>~THE END~</b>
-            </p>
-          }
-        >
-          {posts.map((post: Post) => (
-            <Posts
-              key={post.post_id}
-              post={post}
-              onComment = {handleComment}
-              onLike = {handleLike}
-              onDislike = {handleDislike}
-              onBookmark = {handleBookmark}
-              onUnbookmark = {handleUnbookmark}
+      <Layout style={{ minHeight: "90vh" }}>
+        <Sidebar />
+        <Layout>
+          <Profile>
+            <CustomAvatar
+              onClick={redirectToProfile}
+              size={90}
+              src={CurrentUser.profile_picture}
+              icon={<UserOutlined />}
             />
-          ))}
-      </InfiniteScroll>
-        </Content>
-        
+          </Profile>
+          <PostInputContainer>
+            <StyledInput
+              style={{ height: "70px", marginBottom: "10px" }}
+              placeholder={`What's Happening? ${CurrentUser.first_name}`}
+              value={newPost}
+              onChange={(e) => setNewPost(e.target.value)}
+            />
+            <>
+              <Upload
+                name="postPhoto"
+                listType="picture"
+                maxCount={4}
+                accept="image/jpeg,image/png"
+                beforeUpload={handleFileSelection}
+              >
+                <Button icon={<UploadOutlined />}>Add Photo</Button>
+              </Upload>
+            </>
+            <Button
+              style={{
+                float: "right",
+                width: "70px",
+                margin: "auto",
+                marginTop: "15px",
+              }}
+              type="primary"
+              onClick={() => {
+                handlePost(selectedFile);
+              }}
+            >
+              Post
+            </Button>
+          </PostInputContainer>
+          <Content style={{ padding: "24px" }}>
+            <InfiniteScroll
+              dataLength={posts.length}
+              next={loadMorePosts}
+              hasMore={hasMore}
+              loader={
+                <>
+                  <PostSkeleton />
+                  <PostSkeleton />
+                  <PostSkeleton />
+                </>
+              }
+              endMessage={
+                <p style={{ textAlign: "center" }}>
+                  <b>~THE END~</b>
+                </p>
+              }
+            >
+              {posts.map((post: Post) => (
+                <Posts
+                  key={post.post_id}
+                  post={post}
+                  onComment={handleComment}
+                  onLike={handleLike}
+                  onDislike={handleDislike}
+                  onBookmark={handleBookmark}
+                  onUnbookmark={handleUnbookmark}
+                />
+              ))}
+            </InfiniteScroll>
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
     </Container>
   );
 };

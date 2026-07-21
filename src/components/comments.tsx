@@ -201,8 +201,8 @@ const Comments: React.FC<CommentsProps> = ({ handleComment,onUpdateComment, comm
                     ]
                 ) : []; 
         return (
-          <StyledComment 
-            key={comment.author.email}
+          <StyledComment
+            key={comment.comment_id}
             avatar={<Avatar icon={<UserOutlined />} src={comment.author.profile_picture} />}
             author={comment.author.first_name + " " + comment.author.last_name}
             content={comment.comment_id === editingCommentId ? (

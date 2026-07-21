@@ -195,9 +195,9 @@ const Signup = () => {
         <Form form={form} name="signup" onFinish={onFinish}>
           <Form.Item
             name="first_name"
-            rules={[{ required: true, message: 'Please input your full name!' }]}
+            rules={[{ required: true, message: 'Please input your first name!' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Full Name" />
+            <Input prefix={<UserOutlined />} placeholder="First Name" />
           </Form.Item>
 
           <Form.Item

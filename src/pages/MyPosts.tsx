@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Modal } from 'antd';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { firestore } from '../firebase';
-import { Layout } from 'antd';
-import styled from 'styled-components';
-import { useSelector } from 'react-redux';
-import Sidebar from '../components/sidebar';
-
+import React, { useState, useEffect } from "react";
+import { Table, Button, Space, Modal, message } from "antd";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
+import { firestore } from "../firebase";
+import { Layout } from "antd";
+import styled from "styled-components";
+import { useSelector } from "react-redux";
+import Sidebar from "../components/sidebar";
 
 const PageContainer = styled(Layout)`
   display: flex;
@@ -41,19 +47,33 @@ const Heading = styled.h1`
     left: 0;
     right: 0;
   }
-`
+`;
 
+interface CommentAuthor {
+  email: string;
+  first_name: string;
+  last_name: string;
+  profile_picture: string;
+}
 
-// Replace 'YourRecordType' with the actual type/interface of your post record
-interface YourRecordType {
-  id: string;
-  title: string;
+interface PostComment {
+  author: CommentAuthor;
   content: string;
-  // Add other properties as needed
-  comments?: {
-    id: string;
-    content: string;
-  }[];
+  comment_id: string;
+}
+
+interface Author {
+  first_name: string;
+  last_name: string;
+  email: string;
+  profile_picture: string;
+}
+
+interface PostRecord {
+  id: string;
+  content: string;
+  author: Author;
+  comments?: PostComment[];
 }
 
 interface UserData {
@@ -66,7 +86,7 @@ interface UserData {
 
 // Auth state type
 interface AuthState {
-  user: UserData ;
+  user: UserData;
   error: string | null;
   isAuthenticated: boolean; // Add an isAuthenticated flag
 }
@@ -77,47 +97,28 @@ interface AppState {
 }
 
 const MyPostsPage: React.FC = () => {
-  const [posts, setPosts] = useState<YourRecordType[]>([]);
-  const [comments, setComments] = useState<string[]>([]);
-  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const [posts, setPosts] = useState<PostRecord[]>([]);
 
   const currentUser = useSelector((state: AppState) => state.auth.user);
   const email = currentUser.email;
 
   const fetchPosts = async (userEmail: string) => {
     try {
-      const postsCollection = collection(firestore, 'posts');
-      const postQuery = query(postsCollection, where('email', '==', userEmail));
+      const postsCollection = collection(firestore, "posts");
+      const postQuery = query(postsCollection, where("email", "==", userEmail));
 
       const postsSnapshot = await getDocs(postQuery);
 
-      const filteredPosts: YourRecordType[] = [];
+      const filteredPosts: PostRecord[] = [];
 
-      postsSnapshot.forEach((doc) => {
-        const postData: YourRecordType = { id: doc.id, ...doc.data() } as YourRecordType;
+      postsSnapshot.forEach((docSnap) => {
+        const postData = { id: docSnap.id, ...docSnap.data() } as PostRecord;
         filteredPosts.push(postData);
       });
 
       setPosts(filteredPosts);
     } catch (error: unknown) {
-      console.error('Error fetching posts:');
-    }
-  };
-
-  const fetchComments = (postId: string) => {
-    try {
-      // Find the post with the given postId
-      const post = posts.find((post) => post.id === postId);
-
-      if (post && post.comments && post.comments.length > 0) {
-        // Map through comments and extract content
-        const commentsForPost = post.comments.map((comment) => comment.content || '');
-        setComments(commentsForPost);
-      } else {
-        setComments([]);
-      }
-    } catch (error: unknown) {
-      console.error('Error fetching comments:');
+      console.error("Error fetching posts:", error);
     }
   };
 
@@ -126,60 +127,74 @@ const MyPostsPage: React.FC = () => {
   }, [email]);
 
   const columns = [
-    { title: 'Title', dataIndex: 'title', key: 'title' },
-    { title: 'Content', dataIndex: 'content', key: 'content' },
     {
-      title: 'Actions',
-      key: 'actions',
-      render: () => (
+      title: "Author",
+      key: "author",
+      render: (_: unknown, record: PostRecord) =>
+        `${record.author?.first_name ?? ""} ${record.author?.last_name ?? ""}`.trim(),
+    },
+    { title: "Content", dataIndex: "content", key: "content" },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_: unknown, record: PostRecord) => (
         <Space>
-          <Button onClick={() => handleEdit()}>Edit</Button>
-          <Button onClick={() => handleDelete()}>Delete</Button>
+          <Button danger onClick={() => handleDelete(record)}>
+            Delete
+          </Button>
         </Space>
       ),
     },
   ];
 
+  // Each expanded row renders its OWN comments, read straight from the record,
+  // rather than from a single shared state that leaked across rows.
   const expandableRow = {
-    expandedRowRender: () => (
-      <div>
-        {comments.map((comment, index) => (
-          <div key={index}>{comment}</div>
-        ))}
-      </div>
-    ),
-    onExpand: (expanded: boolean, record: YourRecordType) => {
-      if (expanded) {
-        fetchComments(record.id);
-        setExpandedRowKeys([...expandedRowKeys, record.id]);
-      } else {
-        setExpandedRowKeys(expandedRowKeys.filter((key) => key !== record.id));
+    expandedRowRender: (record: PostRecord) => {
+      const comments = record.comments ?? [];
+      if (comments.length === 0) {
+        return <div style={{ color: "#888" }}>No comments yet.</div>;
       }
+      return (
+        <div>
+          {comments.map((comment) => (
+            <div key={comment.comment_id} style={{ marginBottom: 4 }}>
+              <strong>
+                {`${comment.author?.first_name ?? ""} ${comment.author?.last_name ?? ""}`.trim()}
+                :{" "}
+              </strong>
+              {comment.content}
+            </div>
+          ))}
+        </div>
+      );
     },
   };
 
-  const handleEdit = () => {
-    Modal.info({
-      title: 'Edit Post',
-      content: <div>Edit form goes here</div>,
-    });
-  };
-
-  const handleDelete = () => {
+  const handleDelete = (record: PostRecord) => {
     Modal.confirm({
-      title: 'Delete Post',
-      content: 'Are you sure you want to delete this post?',
-      onOk: () => {
-        // Implement delete logic here
-        // You might want to update the 'posts' state after deletion
+      title: "Delete Post",
+      content: "Are you sure you want to delete this post?",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      cancelText: "Cancel",
+      onOk: async () => {
+        try {
+          await deleteDoc(doc(firestore, "posts", record.id));
+          setPosts((prev) => prev.filter((post) => post.id !== record.id));
+          message.success("Post deleted successfully.");
+        } catch (error: unknown) {
+          console.error("Error deleting post:", error);
+          message.error("Failed to delete post. Please try again.");
+        }
       },
     });
   };
 
   return (
-  <>
-  <PageContainer>
-    <Heading> My Posts </Heading>
+    <>
+      <PageContainer>
+        <Heading> My Posts </Heading>
         <Sidebar />
         <StyledTable
           dataSource={posts}
@@ -188,7 +203,7 @@ const MyPostsPage: React.FC = () => {
           rowKey="id"
         />
       </PageContainer>
-  </>
+    </>
   );
 };
 
